@@ -59,7 +59,7 @@ int hashmap_remove(HashMap *map, const char *key){
         if (map->table[cle].key != TOMBSTONE && strcmp(map->table[cle].key, key) == 0) {
             free(map->table[cle].key);
             map->table[cle].key = TOMBSTONE;
-            map->table[cle].value = TOMBSTONE;
+            map->table[cle].value = TOMBSTONE; 
             return 0;
         }
         cle = (cle + 1) % TABLE_SIZE;

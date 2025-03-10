@@ -71,8 +71,52 @@ int create_segment(MemoryHandler *handler, const char *name, int start, int size
             current->size = start - current->start;
         }
     }
-
+ 
     Segment *allocated_segment = creer_segment(start, size);
     hashmap_insert(handler->allocated, name, allocated_segment);
+    return 0;
+}
+
+int remove_segment(MemoryHandler *handler, const char *name) {
+    Segment *segment = (Segment*)hashmap_get(handler->allocated, name);
+    if (segment == NULL) {
+        return -1;
+    }
+
+    Segment *libre = handler->free_list;
+    Segment *prev = NULL;
+
+    // Recherche du segment libre juste avant
+    while (libre != NULL && libre->start + libre->size < segment->start) {
+        prev = libre;
+        libre = libre->next;
+    }
+
+    // Fusionner avec le segment libre précédent si adjacent
+    if (prev != NULL && prev->start + prev->size == segment->start) {
+        prev->size += segment->size;
+        segment->start = prev->start;
+        segment->size = prev->size;
+        segment->next = prev->next;
+        free(prev);
+        prev = NULL;
+    }
+
+    // Fusionner avec le segment libre suivant si adjacent
+    if (libre != NULL && segment->start + segment->size == libre->start) {
+        segment->size += libre->size;
+        segment->next = libre->next;
+        free(libre);
+    } else {
+        segment->next = libre;
+    }
+
+    // Ajouter le segment libéré à la liste des segments libres
+    if (prev == NULL) {
+        handler->free_list = segment;
+    } else {
+        prev->next = segment;
+    }
+    hashmap_remove(handler->allocated, name);
     return 0;
 }
