@@ -1,7 +1,6 @@
 CFLAGS = -g -Wno-unused-parameter -Wall -O2
 PROGRAMS = main
-OBJS = hash.o
-
+OBJS = hash.o main.o
 
 .PHONY: all clean
 
@@ -12,6 +11,9 @@ main: $(OBJS)
 
 hash.o: hash.c hash.h
 	gcc $(CFLAGS) -c hash.c
+
+main.o: main.c hash.h
+	gcc $(CFLAGS) -c main.c
 
 clean:
 	rm -f *.o *~ $(PROGRAMS)
