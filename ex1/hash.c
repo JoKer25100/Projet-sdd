@@ -77,3 +77,14 @@ void hashmap_destroy(HashMap *map){
     free(map->table);
     free(map);
 }
+
+int hashmap_size(HashMap *map){
+    /*retourne le nombre d'elements dans la table de hachage*/
+    int res = 0;
+    for (int i = 0; i < TABLE_SIZE; i++){
+        if (map->table[i].key != NULL && map->table[i].key != TOMBSTONE) {
+            res++;
+        }
+    }
+    return res;
+}

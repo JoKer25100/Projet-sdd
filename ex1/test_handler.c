@@ -4,7 +4,7 @@
 #include "hash.h"
 #include "Handler.h"
 
-int main(int argc, char *argv[]) {
+int main() {
     // Initialiser le gestionnaire de mémoire avec une taille de 100 unités
     MemoryHandler *handler = memory_init(100);
     if (handler == NULL) {

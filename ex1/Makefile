@@ -1,7 +1,8 @@
 CFLAGS = -g -Wno-unused-parameter -Wall -O2
-PROGRAMS = test_hash test_handler
+PROGRAMS = test_hash test_handler test_parser
 OBJS_HASH = hash.o test_hash.o
 OBJS_HANDLER = hash.o Handler.o test_handler.o
+OBJS_PARSER = hash.o Handler.o Parser.o test_parser.o
 
 .PHONY: all clean
 
@@ -13,11 +14,17 @@ test_hash: $(OBJS_HASH)
 test_handler: $(OBJS_HANDLER)
 	gcc -o $@ $(CFLAGS) $^
 
+test_parser: $(OBJS_PARSER)
+	gcc -o $@ $(CFLAGS) $^
+
 hash.o: hash.c hash.h
 	gcc $(CFLAGS) -c hash.c
 
 Handler.o: Handler.c Handler.h
 	gcc $(CFLAGS) -c Handler.c
+
+Parser.o: Parser.c Parser.h Handler.h hash.h
+	gcc $(CFLAGS) -c Parser.c
 
 test_hash.o: test_hash.c hash.h
 	gcc $(CFLAGS) -c test_hash.c
@@ -25,5 +32,7 @@ test_hash.o: test_hash.c hash.h
 test_handler.o: test_handler.c hash.h Handler.h
 	gcc $(CFLAGS) -c test_handler.c
 
+test_parser.o: test_parser.c hash.h Handler.h Parser.h
+	gcc $(CFLAGS) -c test_parser.c
 clean:
 	rm -f *.o *~ $(PROGRAMS)
