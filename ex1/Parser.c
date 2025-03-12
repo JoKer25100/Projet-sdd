@@ -55,3 +55,53 @@ Instruction *parse_data_instruction(const char *line, HashMap *memory_locations)
 
     return res;
 }
+
+Instruction *parse_code_instruction(const char *line, HashMap *labels, int code_count){
+    Instruction *instr = (Instruction *)malloc(sizeof(Instruction));
+    if (instr == NULL) {
+        return NULL;
+    }
+    char label[32];
+    char mnemonic[32];
+    char operand1[32];
+    char operand2[32];
+
+    char *line_copy = strdup(line);
+    char *token = strtok(line_copy, " :,\t\n");
+    
+    if (token == NULL) {
+        free(instr);
+        free(line_copy);
+        return NULL;
+    }
+
+    //On vérifie si le token est un label
+    if (token != NULL && token[strlen(token) - 1] == ':') {
+        strncpy(label, token, strlen(token) - 1);
+        hashmap_insert(labels, label, (void *)(intptr_t)code_count);
+        token = strtok(NULL, " :,\t\n");
+    }
+    
+    //On récupère toutes les informations de l'instruction
+    if (token != NULL){
+        strncpy(mnemonic, token, 32);
+        token = strtok(NULL, " :,\t\n");
+    }
+
+    if (token != NULL){
+        strncpy(operand1, token, 32);
+        token = strtok(NULL, " :,\t\n");
+    }
+
+    if (token != NULL){
+        strncpy(operand2, token, 32);
+        token = strtok(NULL, " :,\t\n");
+    }
+
+    strcpy(instr->mnemonic, mnemonic);
+    strcpy(instr->operand1, operand1);
+    strcpy(instr->operand2, operand2);
+
+    free(line_copy);
+    return instr;
+}
