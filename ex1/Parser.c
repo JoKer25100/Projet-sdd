@@ -61,10 +61,10 @@ Instruction *parse_code_instruction(const char *line, HashMap *labels, int code_
     if (instr == NULL) {
         return NULL;
     }
-    char label[32];
-    char mnemonic[32];
-    char operand1[32];
-    char operand2[32];
+    char label[32] = "";
+    char mnemonic[32] = "";
+    char operand1[32] = "";
+    char operand2[32] = "";
 
     char *line_copy = strdup(line);
     char *token = strtok(line_copy, " :,\t\n");
@@ -75,32 +75,33 @@ Instruction *parse_code_instruction(const char *line, HashMap *labels, int code_
         return NULL;
     }
 
-    //On vérifie si le token est un label
+    // On vérifie si le token est un label
     if (token != NULL && token[strlen(token) - 1] == ':') {
-        strncpy(label, token, strlen(token) - 1);
+        strcpy(label, token);
+        label[strlen(label)] = '\0'; // Ensure null-termination
         hashmap_insert(labels, label, (void *)(intptr_t)code_count);
         token = strtok(NULL, " :,\t\n");
     }
     
-    //On récupère toutes les informations de l'instruction
+    // On récupère toutes les informations de l'instruction
     if (token != NULL){
-        strncpy(mnemonic, token, 32);
+        strcpy(mnemonic, token);
         token = strtok(NULL, " :,\t\n");
     }
 
     if (token != NULL){
-        strncpy(operand1, token, 32);
+        strcpy(operand1, token);
         token = strtok(NULL, " :,\t\n");
     }
 
     if (token != NULL){
-        strncpy(operand2, token, 32);
+        strcpy(operand2, token);
         token = strtok(NULL, " :,\t\n");
     }
 
-    strcpy(instr->mnemonic, mnemonic);
-    strcpy(instr->operand1, operand1);
-    strcpy(instr->operand2, operand2);
+    instr->mnemonic = strdup(mnemonic);
+    instr->operand1 = strdup(operand1);
+    instr->operand2 = strdup(operand2);
 
     free(line_copy);
     return instr;
@@ -166,7 +167,38 @@ ParserResult *parse(const char *filename){
             }
         }
     }
-
+    res->data_count = data_count;
+    res->code_count = code_count;
     fclose(f);
     return res;
+}
+
+void free_parser_result(ParserResult *result){
+    if (result == NULL) {
+        return;
+    }
+
+    if (result->data_instructions != NULL) {
+        for (int i = 0; i < result->data_count; i++) {
+            free(result->data_instructions[i]->mnemonic);
+            free(result->data_instructions[i]->operand1);
+            free(result->data_instructions[i]->operand2);
+            free(result->data_instructions[i]);
+        }   
+        free(result->data_instructions);
+    }
+
+    if (result->code_instructions != NULL) {
+        for (int i = 0; i < result->code_count; i++) {
+            free(result->code_instructions[i]->mnemonic);
+            free(result->code_instructions[i]->operand1);
+            free(result->code_instructions[i]->operand2);
+            free(result->code_instructions[i]);
+        }
+        free(result->code_instructions);
+    }
+
+    hashmap_destroy(result->labels);
+    hashmap_destroy(result->memory_locations);
+    free(result);
 }

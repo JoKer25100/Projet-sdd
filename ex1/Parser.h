@@ -21,5 +21,7 @@ int count_elements(const char *valeur);//compte le nombre d'elements dans une ch
 Instruction *parse_data_instruction(const char *line, HashMap *memory_locations);//parse une instruction de type .DATA
 Instruction *parse_code_instruction(const char *line, HashMap *labels, int code_count);//analyser et stocker une ligne de la section .CODE
 ParserResult *parse(const char *filename);//analyser un fichier assembleur
+void free_parser_result(ParserResult *result);//liberer la memoire allouee pour le resultat de l'analyse
+
 
 #endif
