@@ -105,3 +105,68 @@ Instruction *parse_code_instruction(const char *line, HashMap *labels, int code_
     free(line_copy);
     return instr;
 }
+
+ParserResult *parse(const char *filename){
+    FILE *f = fopen(filename, "r");
+    if (f == NULL) {
+        return NULL;
+    }
+
+    ParserResult *res = (ParserResult *)malloc(sizeof(ParserResult));
+    if (res == NULL) {
+        fclose(f);
+        return NULL;
+    } 
+
+    //Allocation de la mémoire pour tous les élements 
+    char buffer [128];
+    int code_count = 0;
+    int data_count = 0;
+    res->data_instructions = NULL;
+    res->code_instructions = NULL;
+    res->labels = hashmap_create();
+    res->memory_locations = hashmap_create();
+
+    if (res->labels == NULL || res->memory_locations == NULL) {
+        free(res);
+        fclose(f);
+        return NULL;
+    }
+
+    //On lit les instructions de .DATA
+    if (strcmp(fgets(buffer, 128, f), ".DATA\n") == 0) {
+        while (fgets(buffer, 128, f) != NULL && strcmp(buffer, ".CODE\n") != 0) {
+            Instruction *instr = parse_data_instruction(buffer, res->memory_locations);
+            if (instr != NULL) {
+                res->data_instructions = (Instruction **)realloc(res->data_instructions, (data_count + 1) * sizeof(Instruction *));
+                if (res->data_instructions == NULL) {
+                    free(res);
+                    fclose(f);
+                    return NULL;
+                }
+                res->data_instructions[data_count] = instr;
+                data_count++;
+            }
+        }
+    }
+
+    //On lit les instructions de .CODE
+    if (strcmp(buffer, ".CODE\n")== 0){
+        while (fgets(buffer, 128, f) != NULL) {
+            Instruction *instr = parse_code_instruction(buffer, res->labels, code_count);
+            if (instr != NULL) {
+                res->code_instructions = (Instruction **)realloc(res->code_instructions, (code_count + 1) * sizeof(Instruction *));
+                if (res->code_instructions == NULL) {
+                    free(res);
+                    fclose(f);
+                    return NULL;
+                }
+                res->code_instructions[code_count] = instr;
+                code_count++;
+            }
+        }
+    }
+
+    fclose(f);
+    return res;
+}
