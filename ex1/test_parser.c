@@ -11,6 +11,9 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Erreur d'analyse du fichier\n");
         return 1;
     }
+
+    printf("data_count = %d\n", res->data_count);
+    printf("code_count = %d\n", res->code_count);
     free_parser_result(res);
     return 0;
 }
