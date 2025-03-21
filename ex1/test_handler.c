@@ -53,24 +53,7 @@ int main() {
         free_seg = free_seg->next;
     }
 
-    // Libérer les segments alloués dynamiquement dans le gestionnaire de mémoire
-    for (int i = 1; i <= 3; i++) {
-        char key[20];
-        snprintf(key, sizeof(key), "segment%d", i);
-        Segment *seg = (Segment *)hashmap_get(handler->allocated, key);
-        if (seg != NULL) {
-            free(seg);
-        }
-    }
-
-    // Libérer la mémoire allouée pour le gestionnaire de mémoire
-    while (handler->free_list != NULL) {
-        Segment *next = handler->free_list->next;
-        free(handler->free_list);
-        handler->free_list = next;
-    }
-    hashmap_destroy(handler->allocated);
-    free(handler->memory);
-    free(handler);
+    // Libérer la mémoire allouée dynamiquement
+    memory_destroy(handler);
     return 0;
 }

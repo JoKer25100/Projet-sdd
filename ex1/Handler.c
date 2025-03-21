@@ -41,7 +41,6 @@ Segment *creer_segment(int start, int size){
     return new_segment;
 }
 
-
 int create_segment(MemoryHandler *handler, const char *name, int start, int size) {
     Segment *prev = NULL;
     Segment *current = find_free_segment(handler, start, size, &prev);
@@ -119,4 +118,26 @@ int remove_segment(MemoryHandler *handler, const char *name) {
     }
     hashmap_remove(handler->allocated, name);
     return 0;
+}
+
+void memory_destroy(MemoryHandler *handler) {
+    // Libérer les segments alloués dynamiquement dans le gestionnaire de mémoire
+    for (int i = 1; i <= 3; i++) {
+        char key[20];
+        snprintf(key, sizeof(key), "segment%d", i);
+        Segment *seg = (Segment *)hashmap_get(handler->allocated, key);
+        if (seg != NULL) {
+            free(seg);
+        }
+    }
+
+    // Libérer la mémoire allouée pour le gestionnaire de mémoire
+    while (handler->free_list != NULL) {
+        Segment *next = handler->free_list->next;
+        free(handler->free_list);
+        handler->free_list = next;
+    }
+    hashmap_destroy(handler->allocated);
+    free(handler->memory);
+    free(handler);
 }
