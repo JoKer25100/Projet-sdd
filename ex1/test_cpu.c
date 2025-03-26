@@ -20,6 +20,7 @@ int main(int argc, char *argv[]) {
 
     allocate_variables(cpu, res->data_instructions, res->data_count);
     print_data_segment(cpu);
+    
     free_parser_result(res);
     cpu_destroy(cpu);
     return 0;

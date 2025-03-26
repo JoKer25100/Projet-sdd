@@ -3,16 +3,29 @@
 #include <string.h>
 #include <math.h>
 #include <stdint.h>
+#include <regex.h>
 #include "Parser.h"
 #include "hash.h"
 #include "Handler.h"
 #include "Cpu.h"
 
+int matches(const char *pattern, const char *string) {
+    regex_t regex;
+    int result = regcomp(&regex, pattern, REG_EXTENDED);
+    if (result) {
+        fprintf(stderr, "Regex compilation failed for pattern: %s\n", pattern);
+        return 0;
+    }
+    result = regexec(&regex, string, 0, NULL, 0);
+    regfree(&regex);
+    return result == 0;
+}
 
 CPU *cpu_init(int memory_size){
     CPU *res = (CPU*)malloc(sizeof(CPU));
     res->memory_handler = memory_init(memory_size);
     res->context = hashmap_create();
+    res->constant_pool = hashmap_create();
     hashmap_insert(res->context, "AX", (void*)0);
     hashmap_insert(res->context, "BX", (void*)0);
     hashmap_insert(res->context, "CX", (void*)0);
@@ -22,6 +35,7 @@ CPU *cpu_init(int memory_size){
 
 void cpu_destroy(CPU *cpu){
     hashmap_destroy(cpu->context);
+    hashmap_destroy(cpu->constant_pool);
     memory_destroy(cpu->memory_handler);
     free(cpu);
 }
@@ -94,19 +108,53 @@ void allocate_variables(CPU *cpu, Instruction** data_instructions, int data_coun
 }
 
 void print_data_segment(CPU *cpu){
+    // Récupère le segment de données (DS) depuis le gestionnaire de mémoire
     Segment *segment = (Segment*)hashmap_get(cpu->memory_handler->allocated, "DS");
     if (segment == NULL) {
+        // Affiche un message d'erreur si le segment de données n'est pas trouvé
         fprintf(stderr, "Segment de données non trouvé.\n");
         return;
     }
     
+    // Récupère la taille du segment de données
     int taille_segment = segment->size;
+    // Parcourt chaque position dans le segment de données
     for (int i = 0; i < taille_segment; i++) {
+        // Charge la valeur à la position i dans le segment de données
         int *value = (int*)load(cpu->memory_handler, "DS", i);
         if (value != NULL) {
+            // Affiche la valeur si elle n'est pas NULL
             printf("DS[%d] = %d\n", i, *value);
         } else {
+            // Affiche NULL si aucune valeur n'est trouvée à cette position
             printf("DS[%d] = NULL\n", i);
         }
     }
+}
+
+void *immediate_addressing(CPU *cpu, const char *operand){
+    // Vérifie si l'opérande est une valeur immédiate valide (un nombre entier)
+    if (matches("^[0-9]+$", operand) == 0){
+        printf("L'opérande %s n'est pas une valeur immédiate valide.\n", operand);
+        return NULL;
+    }
+
+    // Vérifie si la valeur immédiate est déjà présente dans le pool de constantes
+    if (hashmap_get(cpu->constant_pool, operand) != NULL){
+        return hashmap_get(cpu->constant_pool, operand);
+    }
+
+    // Alloue de la mémoire pour stocker la valeur immédiate
+    int *res = (int*)malloc(sizeof(int));
+    *res = atoi(operand);
+
+    // Insère la valeur immédiate dans le pool de constantes
+    if (hashmap_insert(cpu->constant_pool, operand, res) != 0){
+        free(res);
+        printf("Erreur lors de l'insertion de la valeur immédiate %s dans le pool de constantes.\n", operand);
+        return NULL;
+    }
+
+    // Retourne un pointeur vers la valeur immédiate
+    return (void*)res;
 }

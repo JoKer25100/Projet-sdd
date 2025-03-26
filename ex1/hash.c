@@ -25,19 +25,40 @@ HashMap* hashmap_create(){
     return res;
 }
 
-int hashmap_insert(HashMap *map, const char *key, void *value){
-    /*insere un element dans la table de hachage*/
-    unsigned long cle = simple_hash(key);
-    while (map->table[cle].key != NULL && map->table[cle].key != TOMBSTONE) {
-        if (strcmp(map->table[cle].key, key) == 0) {
-            map->table[cle].value = value;
+int hashmap_insert(HashMap *map, const char *key, void *value) {
+    // Vérification des paramètres
+    if (map == NULL || key == NULL) return -1;
+
+    // Calcul de l'index
+    unsigned long index = simple_hash(key) % TABLE_SIZE;
+    int start_index = index;
+
+    // Probing linéaire
+    do {
+        HashEntry* entry = &map->table[index];
+        
+        // Case vide ou TOMBSTONE
+        if (entry->key == NULL || entry->key == TOMBSTONE) {
+            char *key_copy = strdup(key);
+            if (key_copy == NULL) return -2; // Erreur allocation
+            
+            entry->key = key_copy;
+            entry->value = value;
+            map->size++;
             return 0;
         }
-        cle = (cle + 1) % TABLE_SIZE;
-    }
-    map->table[cle].key = strdup(key);
-    map->table[cle].value = value;
-    return 0;
+        
+        // Clé existante
+        if (strcmp(entry->key, key) == 0) {
+            entry->value = value;
+            return 0;
+        }
+
+        // Collision
+        index = (index + 1) % TABLE_SIZE;
+    } while (index != start_index);
+
+    return -3; // Table pleine
 }
 
 void *hashmap_get(HashMap *map, const char *key){
