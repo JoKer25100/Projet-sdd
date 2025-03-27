@@ -1,63 +1,52 @@
 #include <stdio.h>
+#include <assert.h>
 #include <stdlib.h>
-#include <string.h>
 #include "hash.h"
 
-int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s <number_of_elements>\n", argv[0]);
-        return 1;
-    }
+int main() {
+    // 1. Test de simple_hash
+    unsigned long hash1 = simple_hash("test");
+    unsigned long hash2 = simple_hash("test");
+    unsigned long hash3 = simple_hash("autre");
+    assert(hash1 == hash2);  // Même entrée = même hash
+    assert(hash1 != hash3);  // Entrées différentes = hash différents (généralement)
+    printf("simple_hash: OK\n");
 
-    int num_elements = atoi(argv[1]);
-    if (num_elements <= 0) {
-        fprintf(stderr, "Le nombre d'element doit etre positif\n");
-        return 1;
-    }
-
-    // Créer une nouvelle table de hachage
+    // 2. Création et destruction
     HashMap *map = hashmap_create();
+    assert(map != NULL && map->size == TABLE_SIZE);
+    printf("hashmap_create: OK\n");
 
-    // Insérer des éléments dans la table de hachage 
-    for (int i = 1; i <= num_elements; i++) {
-        char key[20];
-        char *value = malloc(20 * sizeof(char));
-        snprintf(key, sizeof(key), "key%d", i);
-        snprintf(value, 20, "value%d", i);
-        hashmap_insert(map, key, value);
-    }
+    // 3. Insertion et récupération
+    int *value1 = malloc(sizeof(int));
+    int *value2 = malloc(sizeof(int));
+    *value1 = 42;
+    *value2 = 100;
 
-    // Récupérer des éléments de la table de hachage
-    for (int i = 1; i <= num_elements; i++) {
-        char key[20];
-        snprintf(key, sizeof(key), "key%d", i);
-        printf("%s: %s\n", key, (char *)hashmap_get(map, key));
-    }
+    assert(hashmap_insert(map, "clé1", value1) == 0);
+    assert(hashmap_get(map, "clé1") == value1);
+    assert(hashmap_insert(map, "clé1", value2) == 0);  // Écrasement
+    assert(hashmap_get(map, "clé1") == value2);
+    printf("hashmap_insert/get: OK\n");
 
-    // Supprimer un élément de la table de hachage
-    char key_to_remove[20];
-    snprintf(key_to_remove, sizeof(key_to_remove), "key%d", num_elements);
-    char *value_to_remove = (char *)hashmap_get(map, key_to_remove); // Récupérer la valeur avant suppression
-    hashmap_remove(map, key_to_remove);
-    if (value_to_remove != NULL) {
-        free(value_to_remove); // Libérer la mémoire de la valeur supprimée
-    }
+    // 4. Suppression
+    assert(hashmap_remove(map, "clé1") == 0);
+    assert(hashmap_get(map, "clé1") == NULL);
+    assert(hashmap_remove(map, "inexistante") == -1);
+    printf("hashmap_remove: OK\n");
 
-    // Essayer de récupérer l'élément supprimé
-    printf("%s: %s\n", key_to_remove, (char *)hashmap_get(map, key_to_remove));
+    // 5. Taille de la table
+    assert(hashmap_size(map) == 0);
+    hashmap_insert(map, "clé2", value1);
+    assert(hashmap_size(map) == 1);
+    printf("hashmap_size: OK\n");
 
-    // Libérer les valeurs allouées dynamiquement dans la table de hachage
-    for (int i = 1; i <= num_elements; i++) {
-        char key[20];
-        snprintf(key, sizeof(key), "key%d", i);
-        char *value = (char *)hashmap_get(map, key);
-        if (value != NULL|| value != TOMBSTONE) {
-            free(value);
-        }
-    }
+    // 6. Nettoyage final
+    //value2 n'est pas dans la table de hachage on la free nous-meme
+    free(value2);
+    hashmap_destroy(map); // hashmap_destroy doit libérer les clés et les valeurs dynamiques
+    printf("hashmap_destroy: OK\n\n");
 
-    // Détruire la table de hachage
-    hashmap_destroy(map);
-
+    printf("Tous les tests passés avec succès !\n");
     return 0;
 }

@@ -36,21 +36,17 @@ int hashmap_insert(HashMap *map, const char *key, void *value) {
     // Probing linéaire
     do {
         HashEntry* entry = &map->table[index];
-        
-        // Case vide ou TOMBSTONE
         if (entry->key == NULL || entry->key == TOMBSTONE) {
-            char *key_copy = strdup(key);
-            if (key_copy == NULL) return -2; // Erreur allocation
-            
-            entry->key = key_copy;
+            free(entry->key); // Libère l'ancienne clé si TOMBSTONE
+            entry->key = strdup(key);
             entry->value = value;
-            map->size++;
             return 0;
         }
         
         // Clé existante
         if (strcmp(entry->key, key) == 0) {
             entry->value = value;
+            printf("Updating %s\n", key);
             return 0;
         }
 
@@ -90,9 +86,12 @@ int hashmap_remove(HashMap *map, const char *key){
 
 void hashmap_destroy(HashMap *map){
     /*libere toute la memoire allouee a la table de hachage*/
-    for (int i = 0; i < TABLE_SIZE; i++){
+    for (int i = 0; i < TABLE_SIZE; i++) {
         if (map->table[i].key != NULL && map->table[i].key != TOMBSTONE) {
             free(map->table[i].key);
+            if (map->table[i].value != NULL){
+                free(map->table[i].value);
+            }
         }
     }
     free(map->table);

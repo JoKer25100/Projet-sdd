@@ -3,7 +3,7 @@ PROGRAMS = test_hash test_handler test_parser test_cpu
 OBJS_HASH = hash.o test_hash.o
 OBJS_HANDLER = hash.o Handler.o test_handler.o
 OBJS_PARSER = hash.o Handler.o Parser.o test_parser.o
-OBJ_CPU = Cpu.o hash.o Handler.o Parser.o test_parser.o
+OBJ_CPU = Cpu.o hash.o Handler.o Parser.o test_cpu.o
 
 .PHONY: all clean
 
