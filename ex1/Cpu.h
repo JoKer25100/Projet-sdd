@@ -23,6 +23,7 @@ void *register_addressing(CPU *cpu, const char *operand);// Traite l'addressage 
 void *memory_direct_addressing(CPU *cpu, const char *operand); // Traite l'addressage direct en memoire
 void *register_indirect_addressing(CPU *cpu, const char *operand);// Traite l'addressage indirect par registre
 void handle_MOV(CPU* cpu, void* src, void* dest);// Execute l'instruction MOV
+void *resolve_addressing(CPU *cpu, const char *operand);// Resout l'addressage de l'operande
 
 CPU *setup_test_environment (); //fonction de test
 #endif // _CPU_H_
