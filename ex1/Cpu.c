@@ -51,8 +51,11 @@ CPU *cpu_init(int memory_size) {
     int *zero2 = malloc(sizeof(int));
     int *zero3 = malloc(sizeof(int));
     int *zero4 = malloc(sizeof(int));
-    if (!zero1 || !zero2 || !zero3 || !zero4) {
-        free(zero1); free(zero2); free(zero3); free(zero4);
+    int *zero5 = malloc(sizeof(int));
+    int *zero6 = malloc(sizeof(int));
+    int *zero7 = malloc(sizeof(int));
+    if (!zero1 || !zero2 || !zero3 || !zero4 || !zero5 || !zero6 || !zero7) {
+        free(zero1); free(zero2); free(zero3); free(zero4); free(zero5); free(zero6); free(zero7);
         hashmap_destroy(res->constant_pool);
         hashmap_destroy(res->context);
         memory_destroy(res->memory_handler);
@@ -60,11 +63,14 @@ CPU *cpu_init(int memory_size) {
         return NULL;
     }
 
-    *zero1 = 0; *zero2 = 0; *zero3 = 0; *zero4 = 0;
+    *zero1 = 0; *zero2 = 0; *zero3 = 0; *zero4 = 0; *zero5 = 0; *zero6 = 0; *zero7 = 0;
     hashmap_insert(res->context, "AX", zero1);
     hashmap_insert(res->context, "BX", zero2);
     hashmap_insert(res->context, "CX", zero3);
     hashmap_insert(res->context, "DX", zero4);
+    hashmap_insert(res->context, "IP", zero5);
+    hashmap_insert(res->context, "ZF", zero6);
+    hashmap_insert(res->context, "SF", zero7);
 
     return res;
 }
@@ -123,7 +129,7 @@ void allocate_variables(CPU *cpu, Instruction** data_instructions, int data_coun
     }
 
     // Allouer un segment de mémoire pour les variables
-    if (create_segment(cpu->memory_handler, "DS", 0, taille_segment) != 0) {
+    if (create_segment(cpu->memory_handler, "DS", cpu->memory_handler->total_size, taille_segment) != 0) {
         fprintf(stderr, "Erreur lors de l'allocation du segment de données.\n");
         return;
     }
@@ -380,4 +386,158 @@ int search_and_replace(char** str, HashMap* values) {
     }
 
     return replaced;
+}
+
+int resolve_constants(ParserResult *result){
+    if (result == NULL || result->code_instructions == NULL || result->labels == NULL || result->memory_locations == NULL) {
+        return 0;
+    }
+    for (int i=0; i<result->code_count; i++){
+        Instruction *instruction = result->code_instructions[i];
+        void *lb = hashmap_get(result->labels, instruction->operand1);
+        if (lb){
+            // Si l'instruction est une étiquette, on remplace le nom de l'étiquette par son adresse
+            char new_val[32];
+            snprintf(new_val, sizeof(new_val), "%ld", (intptr_t)lb);
+            free(instruction->operand1);
+            instruction->operand1 = strdup(new_val);
+        }
+        int replaced = search_and_replace(&instruction->operand2, result->memory_locations);
+    }
+    return 0;
+}
+
+void allocate_code_segment(CPU *cpu, Instruction **code_instructions, int code_count){
+    if (cpu == NULL || code_instructions == NULL) {
+        return;
+    }
+
+    // Mettre à jour le registre IP (Instruction Pointer) pour pointer vers le début du segment de code
+    int *ip = (int *)hashmap_get(cpu->context, "IP");
+    if (!ip) {
+        fprintf(stderr, "Registre IP non trouvé\n");
+        return;
+    }
+    *ip = 0;
+
+    // Création de l'espace nécessaire pour le segment de code
+    if (create_segment(cpu->memory_handler, "DS", cpu->memory_handler->total_size, code_count) != 0) {
+        fprintf(stderr, "Erreur lors de l'allocation du segment de données.\n");
+        return;
+    }
+
+    // Stocker les instructions dans la mémoire
+    for (int i = 0; i < code_count; i++) {
+        Instruction *instruction = (Instruction*)malloc(sizeof(Instruction));
+        if (instruction == NULL) {
+            fprintf(stderr, "Erreur lors de l'allocation de l'instruction.\n");
+            return;
+        }
+
+        instruction->mnemonic = strdup(code_instructions[i]->mnemonic);
+        if (code_instructions[i]->operand1) instruction->operand1 = strdup(code_instructions[i]->operand1);
+        if (code_instructions[i]->operand2) instruction->operand2 = strdup(code_instructions[i]->operand2);
+
+        if (store(cpu->memory_handler, "CS", i, instruction) == NULL) {
+            fprintf(stderr, "Échec de stockage de l'instruction %d\n", i);
+            free(instruction->mnemonic);
+            free(instruction->operand1);
+            free(instruction->operand2);
+            free(instruction);
+        }
+    }
+}
+
+int handle_instruction(CPU *cpu, Instruction *instr, void *src, void *dest){
+    if (cpu == NULL || instr == NULL) {
+        return -1; // Erreur
+    }
+
+    // MOV
+    if (strcmp(instr->mnemonic, "MOV") == 0) {
+        handle_MOV(cpu, src, dest);
+        return 0; // Succès
+    }
+    
+    // ADD
+    if (strcmp(instr->mnemonic, "ADD") == 0) {
+        *(int*)dest += *(int*)src;  
+        return 0; // Succès
+    }
+
+    // CMP
+    if (strcmp(instr->mnemonic, "CMP") == 0) {
+        int result = *(int*)dest - *(int*)src;
+        int *zf = (int *)hashmap_get(cpu->context, "ZF");
+        int *sf = (int *)hashmap_get(cpu->context, "SF");
+        if (result == 0) {
+            *zf = 1; // ZF = 1 si égal
+            *sf = 0; // SF = 0
+        } else if (result < 0) {
+            *zf = 0; // ZF = 0
+            *sf = 1; // SF = 1 si négatif
+        } else {
+            *zf = 0; // ZF = 0
+            *sf = 0; // SF = 0
+        }
+        return 0; // Succès
+    }
+
+    // JMP address
+    if (strcmp(instr->mnemonic, "JMP") == 0) {
+        void *ip =hashmap_get(cpu->context, "IP");
+        ip = instr->operand1;
+        return 0; // Succès
+    }
+
+    // JZ address
+    if (strcmp(instr->mnemonic, "JZ") == 0) {
+        int *zf = (int *)hashmap_get(cpu->context, "ZF");
+        if (*zf == 1) {
+            void *ip = hashmap_get(cpu->context, "IP");
+            ip = instr->operand1;
+        }
+        return 0; // Succès
+    }
+
+    // JNZ address
+    if (strcmp(instr->mnemonic, "JNZ") == 0) {
+        int *zf = (int *)hashmap_get(cpu->context, "ZF");
+        if (*zf == 0) {
+            void *ip = hashmap_get(cpu->context, "IP");
+            ip = instr->operand1;
+        }
+        return 0; // Succès
+    }
+
+    // HALT
+    if (strcmp(instr->mnemonic, "HALT") == 0) {
+        void *ip =hashmap_get(cpu->context, "IP");
+        Segment* seg = (Segment*)hashmap_get(cpu->memory_handler->allocated, "CS");
+        int size = seg->size;
+        void *data = load(cpu->memory_handler, "CS", size);
+        data = ip;
+        return 0; // Succès
+    }
+
+    // Si l'instruction n'est pas reconnue
+    fprintf(stderr, "Instruction non reconnue: %s\n", instr->mnemonic);
+    return -1; // Erreur
+}
+
+int execute_instruction(CPU *cpu, Instruction *instr){
+    if (cpu == NULL || instr == NULL) {
+        return -1; // Erreur
+    }
+    
+    if (strcmp(instr->mnemonic,"MOV") == 0 || strcmp(instr->mnemonic,"ADD") == 0 || strcmp(instr->mnemonic,"CMP") == 0){
+        void *src = resolve_addressing(cpu, instr->operand1);
+        void *dest = resolve_addressing(cpu, instr->operand2);
+        if (src == NULL || dest == NULL) {
+            fprintf(stderr, "Erreur de résolution d'adressage pour MOV ou ADD\n");
+            return -1; // Erreur
+        }
+        return handle_instruction(cpu, instr, src, dest);
+    }
+    return handle_instruction(cpu, instr, NULL, NULL);
 }

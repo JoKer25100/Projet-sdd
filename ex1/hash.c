@@ -46,7 +46,6 @@ int hashmap_insert(HashMap *map, const char *key, void *value) {
         // Clé existante
         if (strcmp(entry->key, key) == 0) {
             entry->value = value;
-            printf("Updating %s\n", key);
             return 0;
         }
 

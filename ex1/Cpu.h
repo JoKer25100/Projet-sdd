@@ -2,10 +2,11 @@
 #define _CPU_H_
 #include "Handler.h"
 #include "hash.h"
+#include "Parser.h"
 
 typedef struct {
     MemoryHandler *memory_handler ; // Gestionnaire de memoire
-    HashMap *context ; // Registres (AX, BX, CX, DX)
+    HashMap *context ; // Registres (AX, BX, CX, DX, IP, ZF, SF)
     HashMap *constant_pool; // Table de hachage pour stocker les valeurs immediates
 } CPU ;
 
@@ -26,4 +27,11 @@ void handle_MOV(CPU* cpu, void* src, void* dest);// Execute l'instruction MOV
 void *resolve_addressing(CPU *cpu, const char *operand);// Resout l'addressage de l'operande
 
 CPU *setup_test_environment (); //fonction de test
+
+char* trim(char* str); // Supprime les espaces en debut et fin de chaine
+int search_and_replace(char** str, HashMap* values); // Remplace les variables par leurs valeurs
+int resolve_constants(ParserResult *result); // Resout les constantes dans le code assembleur
+void allocate_code_segment(CPU *cpu, Instruction **code_instructions, int code_count); // Alloue de la memoire pour le segment de code
+int handle_instruction(CPU *cpu, Instruction *instr, void *src, void *dest); //Generalise les instructions cpu
+int execute_instruction(CPU *cpu, Instruction *instr); // Execute une instruction
 #endif // _CPU_H_
