@@ -541,3 +541,96 @@ int execute_instruction(CPU *cpu, Instruction *instr){
     }
     return handle_instruction(cpu, instr, NULL, NULL);
 }
+
+Instruction* fetch_next_instruction(CPU *cpu){
+    if (cpu == NULL) {
+        return NULL; // Erreur
+    }
+
+    // Récupérer le registre IP (Instruction Pointer)
+    int *ip = (int *)hashmap_get(cpu->context, "IP");
+    if (ip == NULL) {
+        fprintf(stderr, "Erreur: Registre IP non trouvé\n");
+        return NULL; // Erreur
+    }
+
+    // Récupérer le segment de code (CS)
+    Segment *segment = (Segment*)hashmap_get(cpu->memory_handler->allocated, "CS");
+    if (segment == NULL) {
+        fprintf(stderr, "Erreur: Segment de code non trouvé\n");
+        return NULL; // Erreur
+    }
+
+    // Vérifier si l'IP est dans les limites du segment de code
+    if (*ip < 0 || *ip >= segment->size) {
+        fprintf(stderr, "Erreur: IP hors limites du segment de code\n");
+        return NULL; // Erreur
+    }
+    // Charger l'instruction à l'adresse spécifiée par l'IP
+    Instruction *instr = (Instruction *)load(cpu->memory_handler, "CS", *ip);
+    if (instr == NULL) {
+        fprintf(stderr, "Erreur: Instruction non trouvée à l'adresse %d\n", *ip);
+        return NULL; // Erreur
+    }
+    // Incrémenter l'IP pour la prochaine instruction
+    (*ip)++;
+    return instr; // Retourner l'instruction chargée
+}
+
+void afficher_etat(CPU *cpu){
+    printf("Segment de code :\n");
+    print_data_segment(cpu);
+    printf("====================================\n");
+    printf("Registres :\n");
+    printf("AX: %d\n", *(int*)hashmap_get(cpu->context, "AX"));
+    printf("BX: %d\n", *(int*)hashmap_get(cpu->context, "BX"));
+    printf("CX: %d\n", *(int*)hashmap_get(cpu->context, "CX"));
+    printf("DX: %d\n", *(int*)hashmap_get(cpu->context, "DX"));
+    printf("IP: %d\n", *(int*)hashmap_get(cpu->context, "IP"));
+    printf("ZF: %d\n", *(int*)hashmap_get(cpu->context, "ZF"));
+    printf("SF: %d\n", *(int*)hashmap_get(cpu->context, "SF"));
+    printf("====================================\n");
+}
+int run_program(CPU *cpu){
+    printf("Execution du programme :\n");
+    printf("====================================\n");
+    afficher_etat(cpu);
+
+    // Boucle d'exécution du programme
+    char input[64];
+    while (1) {
+        printf("Appuyez sur Entrée pour executer la prochaine instruction (q pour quitter): ");
+        
+        if (fgets(input, sizeof(input), stdin) == NULL) {
+            printf("Erreur lors de la lecture de l'entrée\n");
+            break;
+        }
+        
+        // Execution prochaine commande
+        if (strcmp(input, "\n") == 0) {
+            printf("Execution de la prochaine instruction\n");
+            Instruction *instr = fetch_next_instruction(cpu);
+            if (instr == NULL) {
+                printf("Erreur lors de la récupération de l'instruction\n");
+                break;
+            }
+            execute_instruction(cpu, instr);
+            afficher_etat(cpu);
+        }
+
+        // Quitter le programme
+        else if (strcmp(input, "q\n") == 0) {
+            printf("Execution interrompue par l'utilisateur.\n");
+            break;
+        }
+
+        // Commande non reconnue
+        else {
+            printf("Commande non reconnue. Appuyez sur Entrée pour executer la prochaine instruction ou 'q' pour quitter.\n");
+            continue;
+        }
+    }
+    afficher_etat(cpu);
+    printf("Fin de l'exécution du programme.\n");
+    return 0; // Succès
+}

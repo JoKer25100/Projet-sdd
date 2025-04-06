@@ -34,4 +34,6 @@ int resolve_constants(ParserResult *result); // Resout les constantes dans le co
 void allocate_code_segment(CPU *cpu, Instruction **code_instructions, int code_count); // Alloue de la memoire pour le segment de code
 int handle_instruction(CPU *cpu, Instruction *instr, void *src, void *dest); //Generalise les instructions cpu
 int execute_instruction(CPU *cpu, Instruction *instr); // Execute une instruction
+Instruction* fetch_next_instruction(CPU *cpu); // Récupère la prochaine instruction à exécuter
+int run_program(CPU *cpu); // Execute le programme
 #endif // _CPU_H_
