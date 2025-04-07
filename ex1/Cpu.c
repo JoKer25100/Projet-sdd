@@ -60,9 +60,6 @@ CPU *cpu_init(int memory_size) {
         free(res);
         return NULL;
     }
-    void *pos = load(res->memory_handler,"SS",0);
-    hashmap_insert(res->context, "SP", pos);
-    hashmap_insert(res->context, "BP", pos);
 
     // Initialisation des registres
     int *zero1 = malloc(sizeof(int));
@@ -72,8 +69,10 @@ CPU *cpu_init(int memory_size) {
     int *zero5 = malloc(sizeof(int));
     int *zero6 = malloc(sizeof(int));
     int *zero7 = malloc(sizeof(int));
-    if (!zero1 || !zero2 || !zero3 || !zero4 || !zero5 || !zero6 || !zero7) {
-        free(zero1); free(zero2); free(zero3); free(zero4); free(zero5); free(zero6); free(zero7);
+    int *sp = malloc(sizeof(int)); // Registre SP
+    int *bp = malloc(sizeof(int)); // Registre BP
+    if (!zero1 || !zero2 || !zero3 || !zero4 || !zero5 || !zero6 || !zero7 || !sp || !bp) {
+        free(zero1); free(zero2); free(zero3); free(zero4); free(zero5); free(zero6); free(zero7); free(sp); free(bp);
         hashmap_destroy(res->constant_pool);
         hashmap_destroy(res->context);
         memory_destroy(res->memory_handler);
@@ -81,7 +80,7 @@ CPU *cpu_init(int memory_size) {
         return NULL;
     }
 
-    *zero1 = 0; *zero2 = 0; *zero3 = 0; *zero4 = 0; *zero5 = 0; *zero6 = 0; *zero7 = 0;
+    *zero1 = 0; *zero2 = 0; *zero3 = 0; *zero4 = 0; *zero5 = 0; *zero6 = 0; *zero7 = 0; *sp = 128; *bp = 0;
     hashmap_insert(res->context, "AX", zero1);
     hashmap_insert(res->context, "BX", zero2);
     hashmap_insert(res->context, "CX", zero3);
@@ -89,7 +88,8 @@ CPU *cpu_init(int memory_size) {
     hashmap_insert(res->context, "IP", zero5);
     hashmap_insert(res->context, "ZF", zero6);
     hashmap_insert(res->context, "SF", zero7);
-
+    hashmap_insert(res->context, "SP", sp);
+    hashmap_insert(res->context, "BP", bp);
     return res;
 }
 
@@ -650,5 +650,58 @@ int run_program(CPU *cpu){
     }
     afficher_etat(cpu);
     printf("Fin de l'exécution du programme.\n");
+    return 0; // Succès
+}
+
+int push_value(CPU *cpu, int value){
+    if (cpu == NULL) {
+        return -1; // Erreur
+    }
+
+    // Récupérer le registre SP (Stack Pointer)
+    int *sp = (int *)hashmap_get(cpu->context, "SP");
+    if (sp == NULL) {
+        fprintf(stderr, "Erreur: Registre SP non trouvé\n");
+        return -1; // Erreur
+    }
+    if (*sp <= 0){
+        fprintf(stderr, "Erreur: Stack Overflow\n");
+        return -1; // Erreur
+    }
+    (*sp)--;
+    // Allouer de la mémoire pour la valeur à empiler
+    int *value_ptr = (int *)malloc(sizeof(int));
+    if (value_ptr == NULL) {
+        fprintf(stderr, "Erreur: Impossible d'allouer de la mémoire pour la valeur\n");
+        return -1; // Erreur
+    }
+    store(cpu->memory_handler, "SS", *sp, value_ptr);
+    return 0; // Succès
+}
+
+int pop_value(CPU *cpu, int *dest){
+    if (cpu == NULL) {
+        return -1; // Erreur
+    }
+
+    int *sp = (int *)hashmap_get(cpu->context, "SP");
+    if (sp == NULL) {
+        fprintf(stderr, "Erreur: Registre SP non trouvé\n");
+        return -1; // Erreur
+    }
+    
+    if (*sp >= 128){
+        fprintf(stderr, "Erreur: Stack Underflow\n");
+        return -1; // Erreur
+    }
+    void *value = load(cpu->memory_handler, "SS", *sp);
+    if (value == NULL){
+        fprintf(stderr, "Erreur: Impossible de charger la valeur de la pile\n");
+        return -1; // Erreur
+    }
+    *dest = *(int*)value;
+    // Libérer la mémoire de la valeur chargée
+    free(value);
+    (*sp)++;
     return 0; // Succès
 }
