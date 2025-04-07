@@ -25,6 +25,12 @@ CPU *cpu_init(int memory_size) {
     CPU *res = (CPU*)malloc(sizeof(CPU));
     if (res == NULL) return NULL;
 
+    if (memory_size < 128) {
+        printf("Erreur: La taille de la mémoire doit être supérieure à 128.\n");
+        free(res);
+        return NULL;
+    }
+
     res->memory_handler = memory_init(memory_size);
     if (res->memory_handler == NULL) {
         free(res);
@@ -45,6 +51,18 @@ CPU *cpu_init(int memory_size) {
         free(res);
         return NULL;
     }
+
+    // Initialisation de la pile "stack segment"
+    if (create_segment(res->memory_handler, "SS", 0, 128) != 0) {
+        hashmap_destroy(res->constant_pool);
+        hashmap_destroy(res->context);
+        memory_destroy(res->memory_handler);
+        free(res);
+        return NULL;
+    }
+    void *pos = load(res->memory_handler,"SS",0);
+    hashmap_insert(res->context, "SP", pos);
+    hashmap_insert(res->context, "BP", pos);
 
     // Initialisation des registres
     int *zero1 = malloc(sizeof(int));
