@@ -538,6 +538,34 @@ int handle_instruction(CPU *cpu, Instruction *instr, void *src, void *dest){
         return 0; // Succès
     }
 
+    // PUSH
+    if (strcmp(instr->mnemonic, "PUSH") == 0) {
+
+        int value;
+        if (src == NULL) {
+            value = hashmap_get(cpu->context, "AX");
+        } else{
+            value = hashmap_get(cpu->context, instr->operand1);
+        }
+        
+        if (value == NULL) {
+            fprintf(stderr, "Erreur: Registre %s non trouvé\n", instr->operand1);
+            return -1; // Erreur
+        }
+
+        return push_value(cpu, value); // Succès
+    }
+    // POP
+    if (strcmp(instr->mnemonic, "POP") == 0) {
+        int res; 
+        if (dest == NULL) {
+            res = pop_value(cpu, dest);
+        } else{
+            res = pop_value(cpu, hashmap_get(cpu->context, "AX"));
+        }
+
+        return res; // Succès
+    }
     // Si l'instruction n'est pas reconnue
     fprintf(stderr, "Instruction non reconnue: %s\n", instr->mnemonic);
     return -1; // Erreur
