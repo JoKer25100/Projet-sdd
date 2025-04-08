@@ -71,8 +71,9 @@ CPU *cpu_init(int memory_size) {
     int *zero7 = malloc(sizeof(int));
     int *sp = malloc(sizeof(int)); // Registre SP
     int *bp = malloc(sizeof(int)); // Registre BP
-    if (!zero1 || !zero2 || !zero3 || !zero4 || !zero5 || !zero6 || !zero7 || !sp || !bp) {
-        free(zero1); free(zero2); free(zero3); free(zero4); free(zero5); free(zero6); free(zero7); free(sp); free(bp);
+    int *es = malloc(sizeof(int));
+    if (!zero1 || !zero2 || !zero3 || !zero4 || !zero5 || !zero6 || !zero7 || !sp || !bp || !es) {
+        free(zero1); free(zero2); free(zero3); free(zero4); free(zero5); free(zero6); free(zero7); free(sp); free(bp); free(es);
         hashmap_destroy(res->constant_pool);
         hashmap_destroy(res->context);
         memory_destroy(res->memory_handler);
@@ -80,7 +81,7 @@ CPU *cpu_init(int memory_size) {
         return NULL;
     }
 
-    *zero1 = 0; *zero2 = 0; *zero3 = 0; *zero4 = 0; *zero5 = 0; *zero6 = 0; *zero7 = 0; *sp = 128; *bp = 0;
+    *zero1 = 0; *zero2 = 0; *zero3 = 0; *zero4 = 0; *zero5 = 0; *zero6 = 0; *zero7 = 0; *sp = 128; *bp = 0; *es = -1;
     hashmap_insert(res->context, "AX", zero1);
     hashmap_insert(res->context, "BX", zero2);
     hashmap_insert(res->context, "CX", zero3);
@@ -90,6 +91,7 @@ CPU *cpu_init(int memory_size) {
     hashmap_insert(res->context, "SF", zero7);
     hashmap_insert(res->context, "SP", sp);
     hashmap_insert(res->context, "BP", bp);
+    hashmap_insert(res->context, "ES", es);
     return res;
 }
 
@@ -244,7 +246,11 @@ void *memory_direct_addressing(CPU *cpu, const char *operand){
     }
 
     // Convertit l'adresse en entier
-    int pos = atoi(operand);
+    char num[3];
+    strncpy(num, operand + 1, 2); // Extrait le nom du registre sans les crochets
+    num[2] = '\0'; // Ajoute une terminaison nulle
+    int pos = atoi(num);
+
 
     // Charge la valeur à l'adresse spécifiée dans le segment de données (DS)
     void *res = load(cpu->memory_handler, "DS", pos);
@@ -340,6 +346,9 @@ void *resolve_addressing(CPU *cpu, const char *operand){
     }
     if (register_indirect_addressing(cpu, operand)){
         return register_indirect_addressing(cpu, operand);
+    }
+    if (segment_override_addressing(cpu, operand)){
+        return segment_override_addressing(cpu, operand);
     }
     return NULL;
 }
@@ -541,20 +550,21 @@ int handle_instruction(CPU *cpu, Instruction *instr, void *src, void *dest){
     // PUSH
     if (strcmp(instr->mnemonic, "PUSH") == 0) {
 
-        int value;
+        int value = -1;
         if (src == NULL) {
-            value = hashmap_get(cpu->context, "AX");
+            value = *(int*)hashmap_get(cpu->context, "AX");
         } else{
-            value = hashmap_get(cpu->context, instr->operand1);
+            value = *(int*)hashmap_get(cpu->context, instr->operand1);
         }
         
-        if (value == NULL) {
+        if (value == -1) {
             fprintf(stderr, "Erreur: Registre %s non trouvé\n", instr->operand1);
             return -1; // Erreur
         }
 
         return push_value(cpu, value); // Succès
     }
+
     // POP
     if (strcmp(instr->mnemonic, "POP") == 0) {
         int res; 
@@ -566,6 +576,17 @@ int handle_instruction(CPU *cpu, Instruction *instr, void *src, void *dest){
 
         return res; // Succès
     }
+
+    // ALLOC
+    if (strcmp(instr->mnemonic, "ALLOC") == 0) {
+        return alloc_es_segment(cpu); // Succès
+    }
+
+    // FREE
+    if (strcmp(instr->mnemonic, "FREE") == 0) {
+        return free_es_segment(cpu); // Succès
+    }
+
     // Si l'instruction n'est pas reconnue
     fprintf(stderr, "Instruction non reconnue: %s\n", instr->mnemonic);
     return -1; // Erreur
@@ -703,6 +724,8 @@ int push_value(CPU *cpu, int value){
         fprintf(stderr, "Erreur: Impossible d'allouer de la mémoire pour la valeur\n");
         return -1; // Erreur
     }
+    *value_ptr = value;
+    // Stocker la valeur dans le segment de pile (SS)
     store(cpu->memory_handler, "SS", *sp, value_ptr);
     return 0; // Succès
 }
@@ -731,5 +754,162 @@ int pop_value(CPU *cpu, int *dest){
     // Libérer la mémoire de la valeur chargée
     free(value);
     (*sp)++;
+    return 0; // Succès
+}
+
+void* segment_override_addressing(CPU* cpu, const char* operand) {
+    if (!cpu || !operand) return NULL;
+    
+    // Expression régulière pour valider le format
+    if (!matches("^\\[A-Z]{2}:[A-Z]{2}\\]$", operand)) {
+        printf("L'opérande %s n'est pas au format [segment:reg]\n", operand);
+        return NULL;
+    }
+    // Extraction du segment et du registre
+    char segment[3];
+    char reg[3];
+    strncpy(segment, operand + 1, 2); // Extrait le nom du registre sans les crochets
+    strncpy(reg, operand + 4, 2);
+    segment[2] = '\0'; // Ajoute une terminaison nulle
+    reg[2] = '\0'; 
+    
+    // Vérification que le segment existe
+    Segment* seg = hashmap_get(cpu->memory_handler->allocated, segment);
+    if (!seg) return NULL;
+    
+    // Récupération de la valeur du registre
+    int* reg_value = hashmap_get(cpu->context, reg);
+    if (!reg_value) return NULL;
+    
+    // Chargement de la valeur
+    return load(cpu->memory_handler, segment, *reg_value);
+}
+Segment *best_fit(MemoryHandler *handler, int size){
+    Segment *best = NULL;
+    Segment *current = handler->free_list;
+    while (current != NULL) {
+        if (current->size >= size) {
+            if (best == NULL || current->size < best->size) {
+                best = current;
+            }
+        }
+        current = current->next;
+    }
+    return best;
+}
+
+Segment *worst_fit(MemoryHandler *handler, int size){
+    Segment *worst = NULL;
+    Segment *current = handler->free_list;
+    while (current != NULL) {
+        if (current->size >= size) {
+            if (worst == NULL || current->size > worst->size) {
+                worst = current;
+            }
+        }
+        current = current->next;
+    }
+    return worst;
+}
+
+int find_free_address_strategy(MemoryHandler *handler, int size, int strategy){
+    if (strategy == 0){
+        Segment *first = find_free_segment(handler, handler->total_size, size, NULL);
+        if (first == NULL) {
+            return -1; // Pas de segment libre trouvé
+        }
+        return first->start;
+    }
+
+    if (strategy == 1){
+        Segment *best = best_fit(handler, size);
+        if (best == NULL) {
+            return -1; // Pas de segment libre trouvé
+        }
+        return best->start;
+    }
+
+    if (strategy == 2){
+        Segment *worst = worst_fit(handler, size);
+        if (worst == NULL) {
+            return -1; // Pas de segment libre trouvé
+        }
+        return worst->start;
+    }
+    return -1; // Stratégie non reconnue
+}
+
+int alloc_es_segment(CPU *cpu){
+    if (cpu == NULL) {
+        return -1; // Erreur
+    }
+    
+    // Récupérer taille (AX) et stratégie (BX)
+    int *ax = hashmap_get(cpu->context, "AX");
+    int *bx = hashmap_get(cpu->context, "BX");
+    int *es = hashmap_get(cpu->context, "ES");
+    int *zf = hashmap_get(cpu->context, "ZF");
+    
+    if (!ax || !bx || !es || !zf) return -1; // Erreur si registres manquants
+    if (*es != -1) {
+        *zf = 1; // ZF = 1 si segment ES déjà alloué
+        fprintf(stderr, "Erreur: Segment ES déjà alloué\n");
+        return -1; // Erreur
+    }
+    if (*ax <= 0) {
+        *zf = 1; // ZF = 1 si taille invalide
+        fprintf(stderr, "Erreur: Taille de segment ES invalide\n");
+        return -1; // Erreur
+    }
+    if (*bx < 0 || *bx > 2) {
+        *zf = 1; // ZF = 1 si stratégie invalide
+        fprintf(stderr, "Erreur: Stratégie d'allocation invalide\n");
+        return -1; // Erreur
+    }
+    int start = find_free_address_strategy(cpu->memory_handler, *ax, *bx);
+
+    if (start == -1) {
+        *zf = 1; // ZF = 1 si pas de segment libre
+        fprintf(stderr, "Erreur: Pas de segment libre trouvé\n");
+        return -1; // Erreur
+    }
+
+    if (create_segment(cpu->memory_handler, "ES", start, *ax) != 0) {
+        *zf = 1; // Échec
+        return -1;
+    }
+
+    // Initialiser à 0 et mettre à jour ES
+    for (int i = 0; i < *ax; i++) {
+        int *zero = malloc(sizeof(int));
+        *zero = 0;
+        store(cpu->memory_handler, "ES", i, zero);
+    }
+
+    *es = start; // Adresse de base de ES
+    *zf = 0;     // Succès
+    return 0;
+}
+
+int free_es_segment(CPU *cpu){
+    int *es = (int *)hashmap_get(cpu->context, "ES");
+    if (es == NULL) {
+        fprintf(stderr, "Erreur: Registre ES non trouvé\n");
+        return -1; // Erreur
+    }
+    Segment *segment = (Segment*)hashmap_get(cpu->memory_handler->allocated, "ES");
+    if (segment == NULL) {
+        fprintf(stderr, "Erreur: Segment ES non trouvé\n");
+        return -1; // Erreur
+    }
+    
+    for (int i = 0; i < segment->size; i++) {
+        int *value = (int *)load(cpu->memory_handler, "ES", i);
+        if (value != NULL) {
+            free(value); // Libérer la mémoire allouée
+        }
+    }
+    remove_segment(cpu->memory_handler, "ES");
+    *es = -1; // Réinitialiser ES
     return 0; // Succès
 }

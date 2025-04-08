@@ -36,4 +36,11 @@ int handle_instruction(CPU *cpu, Instruction *instr, void *src, void *dest); //G
 int execute_instruction(CPU *cpu, Instruction *instr); // Execute une instruction
 Instruction* fetch_next_instruction(CPU *cpu); // Récupère la prochaine instruction à exécuter
 int run_program(CPU *cpu); // Execute le programme
+
+int push_value(CPU *cpu, int value); // Empile une valeur sur la pile
+int pop_value(CPU *cpu, int *dest); // Depile une valeur de la pile
+
+void* segment_override_addressing(CPU* cpu, const char* operand); // Traite l'addressage avec un segment d'override
+int alloc_es_segment(CPU *cpu); // Alloue le segment ES
+int free_es_segment(); // Libère le segment ES
 #endif // _CPU_H_

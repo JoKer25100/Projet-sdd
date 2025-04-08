@@ -72,6 +72,9 @@ void test_mov_instruction() {
     printf("MOV instruction OK\n");
 }
 
+//Test depuis resolve constants
+
+
 int main() {
     //Premier test tres rapidement
     test_cpu_init_destroy();
