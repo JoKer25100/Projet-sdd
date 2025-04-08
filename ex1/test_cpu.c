@@ -32,13 +32,14 @@ void test_register_operations() {
 
 void test_memory_operations() {
     CPU *cpu = cpu_init(1024);
-    create_segment(cpu->memory_handler, "DS", 0, 10);
+    create_segment(cpu->memory_handler, "DS", 128, 10);
     
     int *val= malloc(sizeof(int));
     *val = 123;
     store(cpu->memory_handler, "DS", 0, val);
     int *loaded = (int*)load(cpu->memory_handler, "DS", 0);
     
+    printf("Loaded value: %d\n", *loaded);
     assert(*loaded == 123);
     cpu_destroy(cpu);
     printf("memory operations OK\n");
@@ -53,7 +54,7 @@ void test_addressing_modes() {
     
     // Test registre indirect
     void *indirect = register_indirect_addressing(cpu, "[AX]");
-    assert(indirect != NULL && *(int*)indirect == 5); // AX=3 -> DS[3]=35
+    assert(indirect != NULL && *(int*)indirect == 35); // AX=3 -> DS[3]=35
     
     cpu_destroy(cpu);
     printf("addressing modes OK\n");
@@ -72,8 +73,10 @@ void test_mov_instruction() {
     printf("MOV instruction OK\n");
 }
 
-//Test depuis resolve constants
+void test_ex6() {
+    printf("=== Test pour l'exo 6 ===\n");
 
+}
 
 int main() {
     //Premier test tres rapidement
@@ -111,5 +114,10 @@ int main() {
     printf("DS[4] = %d\n",*(int*)load(cpu2->memory_handler,"DS",4));
     printf("DS[AX] = %d\n",*(int*)load(cpu2->memory_handler,"DS",*(int*)hashmap_get(cpu2->context,"AX")));
     cpu_destroy(cpu2);
+
+    //Troisieme série de tests à partir de l'exo 6
+    test_ex6();
+    printf("Tous les tests ont réussi !\n");
+    
     return 0;
 }

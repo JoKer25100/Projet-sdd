@@ -320,7 +320,7 @@ CPU *setup_test_environment(){
 
     // Créer et initialiser le segment de données
     if (!hashmap_get(cpu->memory_handler->allocated, "DS")) {
-        create_segment(cpu->memory_handler, "DS", 0, 20);
+        create_segment(cpu->memory_handler, "DS", 128, 20);
 
         // Initialiser le segment de données avec des valeurs de test
         for (int i = 0; i < 10; i++) {
@@ -866,8 +866,8 @@ int alloc_es_segment(CPU *cpu){
         fprintf(stderr, "Erreur: Stratégie d'allocation invalide\n");
         return -1; // Erreur
     }
-    int start = find_free_address_strategy(cpu->memory_handler, *ax, *bx);
 
+    int start = find_free_address_strategy(cpu->memory_handler, *ax, *bx);
     if (start == -1) {
         *zf = 1; // ZF = 1 si pas de segment libre
         fprintf(stderr, "Erreur: Pas de segment libre trouvé\n");
