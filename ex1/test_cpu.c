@@ -75,6 +75,24 @@ void test_mov_instruction() {
 
 void test_ex6() {
     printf("=== Test pour l'exo 6 ===\n");
+    CPU *cpu = cpu_init(1024);
+    int code_count = 2;
+    Instruction *tab[code_count];
+
+    tab[0] = malloc(sizeof(Instruction));
+    tab[0]->mnemonic = strdup("MOV");
+    tab[0]->operand1 = strdup("AX");
+    tab[0]->operand2 = strdup("0");
+
+    
+    tab[1] = malloc(sizeof(Instruction));
+    tab[1]->mnemonic = strdup("MOV");
+    tab[1]->operand1 = strdup("BX");
+    tab[1]->operand2 = strdup("5");
+
+    allocate_code_segment(cpu, tab, code_count);
+    run_program(cpu);
+
 }
 
 int main() {
