@@ -6,7 +6,7 @@
 
 typedef struct {
     MemoryHandler *memory_handler ; // Gestionnaire de memoire
-    HashMap *context ; // Registres (AX, BX, CX, DX, IP, ZF, SF)
+    HashMap *context ; // Registres (AX, BX, CX, DX, IP, ZF, SF, SP, BP)
     HashMap *constant_pool; // Table de hachage pour stocker les valeurs immediates
 } CPU ;
 
@@ -15,8 +15,7 @@ CPU *cpu_init(int memory_size);// Initialise le CPU
 void cpu_destroy(CPU *cpu);// Libere la memoire allouee dynamiquement
 void *store(MemoryHandler *handler, const char *segment_name, int pos, void *data);// Stocke une valeur dans la memoire
 void *load(MemoryHandler *handler, const char *segment_name,int pos);// Charge une valeur depuis la memoire
-void allocate_variables(CPU *cpu, Instruction** data_instructions,int data_count);// Alloue de la memoire pour les variables
-
+void allocate_variables(CPU *cpu, Instruction** data_instructions,int data_count);// Alloue de la memoire pour les variables    
 void print_data_segment(CPU *cpu);// Affiche les valeurs des variables
 
 void *immediate_addressing(CPU *cpu, const char *operand);// Traite l'addressage immédiat
@@ -37,6 +36,8 @@ int run_program(CPU *cpu); // Execute le programme
 int push_value(CPU *cpu, int value); // Empile une valeur sur la pile
 int pop_value(CPU *cpu, int *dest); // Depile une valeur de la pile
 
+Segment *best_fit(MemoryHandler *handler, int size); // Trouve le meilleur segment libre pour allouer de la mémoire
+Segment *worst_fit(MemoryHandler *handler, int size); // Trouve le pire segment libre pour allouer de la mémoire
 void* segment_override_addressing(CPU* cpu, const char* operand); // Traite l'addressage avec un segment d'override
 int alloc_es_segment(CPU *cpu); // Alloue le segment ES
 int free_es_segment(); // Libère le segment ES
