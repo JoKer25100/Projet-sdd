@@ -23,5 +23,8 @@ Instruction *parse_code_instruction(const char *line, HashMap *labels, int code_
 ParserResult *parse(const char *filename);//analyser un fichier assembleur
 void free_parser_result(ParserResult *result);//liberer la memoire allouee pour le resultat de l'analyse
 
-
+//Manque d'explication de ces 2 fonctions et ce qu'elles font
+char* trim(char* str); // Supprime les espaces en debut et fin de chaine
+int search_and_replace(char** str, HashMap* values); // Remplace les variables par leurs valeurs
+int resolve_constants(ParserResult *result); // Resout les constantes dans le code assembleur
 #endif

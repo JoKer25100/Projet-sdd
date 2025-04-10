@@ -20,5 +20,4 @@ Segment *find_free_segment(MemoryHandler* handler, int start, int size, Segment*
 int create_segment(MemoryHandler *handler, const char *name, int start, int size); // Cree un segment de memoire
 int remove_segment(MemoryHandler *handler, const char *name); // Supprime un segment de memoire
 void memory_destroy(MemoryHandler *handler); // Libere la memoire allouee dynamiquement
-
 #endif // _HANDLER_H_

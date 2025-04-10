@@ -28,9 +28,6 @@ void *resolve_addressing(CPU *cpu, const char *operand);// Resout l'addressage d
 
 CPU *setup_test_environment (); //fonction de test
 
-char* trim(char* str); // Supprime les espaces en debut et fin de chaine
-int search_and_replace(char** str, HashMap* values); // Remplace les variables par leurs valeurs
-int resolve_constants(ParserResult *result); // Resout les constantes dans le code assembleur
 void allocate_code_segment(CPU *cpu, Instruction **code_instructions, int code_count); // Alloue de la memoire pour le segment de code
 int handle_instruction(CPU *cpu, Instruction *instr, void *src, void *dest); //Generalise les instructions cpu
 int execute_instruction(CPU *cpu, Instruction *instr); // Execute une instruction

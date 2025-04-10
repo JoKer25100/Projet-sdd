@@ -40,12 +40,14 @@ int hashmap_insert(HashMap *map, const char *key, void *value) {
             free(entry->key); // Libère l'ancienne clé si TOMBSTONE
             entry->key = strdup(key);
             entry->value = value;
+            printf("Inserting key: %s, value: %d\n", key, *(int*)value);
             return 0;
         }
         
         // Clé existante
         if (strcmp(entry->key, key) == 0) {
             entry->value = value;
+            printf("Key already exists, updating value\n");
             return 0;
         }
 
@@ -88,7 +90,7 @@ void hashmap_destroy(HashMap *map){
     for (int i = 0; i < TABLE_SIZE; i++) {
         if (map->table[i].key != NULL && map->table[i].key != TOMBSTONE) {
             free(map->table[i].key);
-            if (map->table[i].value != NULL){
+            if ((map->table[i].value != NULL) && (map->table[i].value != TOMBSTONE)) {
                 free(map->table[i].value);
             }
         }

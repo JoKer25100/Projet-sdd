@@ -75,7 +75,6 @@ void test_mov_instruction() {
 
 void test_ex6() {
     printf("=== Test pour l'exo 6 ===\n");
-
 }
 
 int main() {

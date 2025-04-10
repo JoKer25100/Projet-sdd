@@ -43,14 +43,25 @@ Instruction *parse_data_instruction(const char *line, HashMap *memory_locations)
 
 
     int NbElemValue = count_elements(operand2);
-    int NbElem = hashmap_size(memory_locations);
+    int *NbElem = (int*)malloc(sizeof(int));
+    *NbElem = hashmap_size(memory_locations);
 
-    hashmap_insert(memory_locations, res->mnemonic, (void*)(intptr_t)NbElem);
+
+    hashmap_insert(memory_locations, res->mnemonic, (void*)NbElem);
     
     for (int i = 1; i < NbElemValue; i++) {
         char key[64];
         sprintf(key, "%s_%d", mnemonic, i); // Créer une clé unique pour chaque élément
-        hashmap_insert(memory_locations, key, (void *)(intptr_t)(NbElem + i));
+        int *NbElem2 = (int *)malloc(sizeof(int));
+        *NbElem2 = *NbElem + i;
+        if (hashmap_insert(memory_locations, key, (void *)NbElem2) != 0) {
+            fprintf(stderr, "Erreur d'insertion dans la table de hachage\n");
+            free(res->mnemonic);
+            free(res->operand1);
+            free(res->operand2);
+            free(res);
+            return NULL;
+        }
     }
 
     return res;
@@ -67,7 +78,7 @@ Instruction *parse_code_instruction(const char *line, HashMap *labels, int code_
     char operand2[32] = "";
 
     char *line_copy = strdup(line);
-    char *token = strtok(line_copy, " :,\t\n");
+    char *token = strtok(line_copy, " ,\t\n");
     
     if (token == NULL) {
         free(instr);
@@ -78,8 +89,10 @@ Instruction *parse_code_instruction(const char *line, HashMap *labels, int code_
     // On vérifie si le token est un label
     if (token != NULL && token[strlen(token) - 1] == ':') {
         strcpy(label, token);
-        label[strlen(label)] = '\0'; // Ensure null-termination
-        hashmap_insert(labels, label, (void *)(intptr_t)code_count);
+        label[strlen(label)-1] = '\0'; // Ensure null-termination
+        int *code_count_ptr = (int *)malloc(sizeof(int));
+        *code_count_ptr = code_count;
+        hashmap_insert(labels, label, (void *)code_count_ptr);
         token = strtok(NULL, " :,\t\n");
     }
     
@@ -201,4 +214,85 @@ void free_parser_result(ParserResult *result){
     hashmap_destroy(result->labels);
     hashmap_destroy(result->memory_locations);
     free(result);
+}
+
+char* trim(char* str) {
+    while (*str == ' ' || *str == '\t' || *str == '\n' || *str == '\r') str++;
+
+    char* end = str + strlen(str) - 1;
+    while (end > str && (*end == ' ' || *end == '\t' || *end == '\n' || *end == '\r')) {
+        *end = '\0';
+        end--;
+    }
+    return str;
+}
+
+int search_and_replace(char** str, HashMap* values) {
+    if (!str || !*str || !values) return 0;
+
+    int replaced = 0;
+    char* input = *str;
+
+    // Iterate through all keys in the hashmap
+    for (int i = 0; i < values->size; i++) {
+        if (values->table[i].key && values->table[i].key != (void*)-1) {
+            char* key = values->table[i].key;
+            int value = (int)(long)values->table[i].value;
+
+            // Find potential substring match
+            char* substr = strstr(input, key);
+            if (substr) {
+                char replacement[64];
+                snprintf(replacement, sizeof(replacement), "%d", value);
+
+                // Calculate lengths
+                int key_len = strlen(key);
+                int repl_len = strlen(replacement);
+                int remain_len = strlen(substr + key_len);
+
+                // Create new string
+                char* new_str = (char*)malloc(strlen(input) - key_len + repl_len + 1);
+                strncpy(new_str, input, substr - input);
+                new_str[substr - input] = '\0';
+                strcat(new_str, replacement);
+                strcat(new_str, substr + key_len);
+
+                // Free and update original string
+                free(input);
+                *str = new_str;
+                input = new_str;
+
+                replaced = 1;
+            }
+        }
+    }
+
+    // Trim the final string
+    if (replaced) {
+        char* trimmed = trim(input);
+        if (trimmed != input) {
+            memmove(input, trimmed, strlen(trimmed) + 1);
+        }
+    }
+
+    return replaced;
+}
+
+int resolve_constants(ParserResult *result){
+    if (result == NULL || result->code_instructions == NULL || result->labels == NULL || result->memory_locations == NULL) {
+        return -1; // Erreur
+    }
+    for (int i=0; i<result->code_count; i++){
+        Instruction *instruction = result->code_instructions[i];
+        void *lb = hashmap_get(result->labels, instruction->operand1);
+        if (lb){
+            // Si l'instruction est une étiquette, on remplace le nom de l'étiquette par son adresse
+            char new_val[32];
+            snprintf(new_val, sizeof(new_val), "%ld", (intptr_t)lb);
+            free(instruction->operand1);
+            instruction->operand1 = strdup(new_val);
+        }
+        int replaced = search_and_replace(&instruction->operand2, result->memory_locations);
+    }
+    return 0; // Succès
 }
