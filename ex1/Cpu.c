@@ -149,7 +149,7 @@ void allocate_variables(CPU *cpu, Instruction** data_instructions, int data_coun
     }
 
     // Allouer un segment de mémoire pour les variables
-    if (create_segment(cpu->memory_handler, "DS", cpu->memory_handler->total_size, taille_segment) != 0) {
+    if (create_segment(cpu->memory_handler, "DS", cpu->memory_handler->total_size - taille_segment, taille_segment) != 0) {
         fprintf(stderr, "Erreur lors de l'allocation du segment de données.\n");
         return;
     }
@@ -367,8 +367,8 @@ void allocate_code_segment(CPU *cpu, Instruction **code_instructions, int code_c
     *ip = 0;
 
     // Création de l'espace nécessaire pour le segment de code
-    if (create_segment(cpu->memory_handler, "DS", cpu->memory_handler->total_size, code_count) != 0) {
-        fprintf(stderr, "Erreur lors de l'allocation du segment de données.\n");
+    if (create_segment(cpu->memory_handler, "CS", cpu->memory_handler->total_size - code_count, code_count) != 0) {
+        fprintf(stderr, "Erreur lors de l'allocation du segment de codes.\n");
         return;
     }
 
@@ -380,9 +380,9 @@ void allocate_code_segment(CPU *cpu, Instruction **code_instructions, int code_c
             return;
         }
 
-        instruction->mnemonic = strdup(code_instructions[i]->mnemonic);
-        if (code_instructions[i]->operand1) instruction->operand1 = strdup(code_instructions[i]->operand1);
-        if (code_instructions[i]->operand2) instruction->operand2 = strdup(code_instructions[i]->operand2);
+        instruction->mnemonic = code_instructions[i]->mnemonic;
+        if (code_instructions[i]->operand1) instruction->operand1 = code_instructions[i]->operand1;
+        if (code_instructions[i]->operand2) instruction->operand2 = code_instructions[i]->operand2;
 
         if (store(cpu->memory_handler, "CS", i, instruction) == NULL) {
             fprintf(stderr, "Échec de stockage de l'instruction %d\n", i);
@@ -564,7 +564,7 @@ Instruction* fetch_next_instruction(CPU *cpu){
 }
 
 void afficher_etat(CPU *cpu){
-    printf("Segment de code :\n");
+    printf("Segment de données :\n");
     print_data_segment(cpu);
     printf("====================================\n");
     printf("Registres :\n");

@@ -37,6 +37,7 @@ Segment *find_free_segment(MemoryHandler* handler, int start, int size, Segment*
         *prev = current;
         current = current->next;
     }
+    printf("Aucun segment libre trouvé\n");
     return NULL;
 }
 
@@ -52,6 +53,12 @@ int create_segment(MemoryHandler *handler, const char *name, int start, int size
     Segment *prev = NULL;
     Segment *current = find_free_segment(handler, start, size, &prev);
     if (current == NULL) {
+        current = handler->free_list;
+    while (current != NULL) {
+        printf("Segment libre : start=%d, size=%d\n", current->start, current->size);
+        current = current->next;
+    }
+        printf("Erreur: Pas de segment libre trouvé pour %s\n", name);
         return -1;
     }
 
@@ -73,6 +80,7 @@ int create_segment(MemoryHandler *handler, const char *name, int start, int size
         } else {
             Segment *new_segment = creer_segment(start + size, current->start + current->size - (start + size));
             if (new_segment == NULL) {
+                printf("Erreur: Impossible de créer un nouveau segment\n");
                 return -1; // Vérification d'erreur
             }
             new_segment->next = current->next;
@@ -83,11 +91,13 @@ int create_segment(MemoryHandler *handler, const char *name, int start, int size
 
     Segment *allocated_segment = creer_segment(start, size);
     if (allocated_segment == NULL) {
+        printf("Erreur: Impossible de créer un segment alloué\n");
         return -1; // Vérification d'erreur
     }
 
     if (hashmap_insert(handler->allocated, name, allocated_segment) != 0) {
         free(allocated_segment); // Libérer si l'insertion échoue
+        printf("Erreur: Impossible d'insérer le segment dans la hashmap\n");
         return -1;
     }
 

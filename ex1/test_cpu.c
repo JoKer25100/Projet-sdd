@@ -91,8 +91,18 @@ void test_ex6() {
     tab[1]->operand2 = strdup("5");
 
     allocate_code_segment(cpu, tab, code_count);
+    
     run_program(cpu);
 
+    for (int i = 0; i < code_count; i++) {
+        free(tab[i]->mnemonic);
+        free(tab[i]->operand1);
+        free(tab[i]->operand2);
+        free(tab[i]);
+    }
+    cpu_destroy(cpu);
+    
+    printf("Exo 6 OK\n");
 }
 
 int main() {
